@@ -1,7 +1,7 @@
-function fit = fit_expcurve_2(parms, data)
+function fit = fit_expcurve_full(parms, data,nTrials)
 
 nSubs   = size(data,1); % rows = different subject data
-nTrials = length(data); % colns = trial data for each subject
+% nTrials = length(data); % colns = trial data for each subject
 
 fit = 0;
 

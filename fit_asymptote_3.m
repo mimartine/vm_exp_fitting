@@ -46,24 +46,33 @@ for i = 1:nsubs
 end % for ...
 
 %% Fitting Parameters
-parms = 0;
+parms = [0, 0, -0.5];
 
-minParms                    = -1;
-maxParms                    = 1;
-parmSteps                   = 0.1;
-psrFactor                   = 0.5;
-psaFactor                   = 1.5;
+minParms                    = [-50 -50 -1];
+maxParms                    = [50 50 1];
+parmSteps                   = [0.1 0.1 0.1];
+psrFactor                   = [0.5 0.5 0.5];
+psaFactor                   = [1.5 1.5 1.5];
 
 %
 nTrials     = sum(xlimit);
 modelPred   = nan(nsubs,nTrials);
 
-model = @fit_expcurve;
+model = @fit_expcurve_full;
 asymptote_output = [];
 
 %% Fitting
 for pIdx = 1:nsubs
     for cIdx = 1:3
+        
+        if cIdx == 2
+            minParms(2) = 0;
+            maxParms(2) = 50;
+        else
+            minParms(2) = -50;
+            maxParms(2) = 0;
+        end 
+        
         pData = diff_data(diff_data(:,2) == plist(pIdx) & diff_data(:,4) == cIdx+1,:);
         pno = mean(pData(:,2));
         cnd = mean(pData(:,3));
@@ -82,10 +91,8 @@ for pIdx = 1:nsubs
 %             peakPt = min(pData);
 %         end
 %         
-        peakPt = pData(1);
-      
-        asymPt  = mean(pData(end-3:end));
-        delta   = peakPt - asymPt;
+        parms(1) = pData(1);
+        parms(2) = pData(1) - mean(pData(end-3:end));
         
         %     options = optimset('Display','final','MaxIter',10000,'MaxFunEvals',1e16,'TolFun',1e-16,'TolX',1e-16);
         %     [fit, fval] = fmincon(model,parms,Aeq,beq,[],[],minParms,maxParms,[],options, [sp delta], pData);
@@ -95,12 +102,14 @@ for pIdx = 1:nsubs
             0, minParms, maxParms,...  % Set first parm to -1 to show iteration
             -1, 1e-4, 10000,...
             parmSteps, psaFactor, psrFactor,...
-            [asymPt delta], pData,trials);
+            pData,trials);
         
         fValue(pIdx,cIdx) = fval;
-        fParms(pIdx,cIdx) = fit;
+        fAsym(pIdx,cIdx)  = fit(1);
+        fDelta(pIdx,cIdx) = fit(2);
+        fRate(pIdx,cIdx)  = fit(3);
         
-        y = expFun([asymPt delta fit],nt);
+        y = expFun(fit,nt);
         
         r = power(corrcoef([pData;y(trials)]'),2);
         rSquared(pIdx,cIdx) = r(1,2);
@@ -128,18 +137,18 @@ for pIdx = 1:nsubs
 end % for i...
 
 %%
-dlmwrite('asymptote_values_model_1.dat',asymptote_output)
+dlmwrite('asymptote_values_model_3.dat',asymptote_output)
 
 modelPred = [aggregate(diff_data,1:3,1:3,@mean,1), modelPred];
 
 meanPred = aggregate(modelPred,[1 3],4:size(modelPred,2),@nanmean);
 meanData = [aggregate(diff_data,[1 3 4 5],PVcol,@nanmean),aggregate(diff_data,[1 3 4 5],PVcol,@nanstd,1)./sqrt(nsubs/14)];
 
-fParms = [aggregate(diff_data,1:3, 1:3,@mean,1),-(fParms)];
-fParms(:,7) = fParms(:,6) - fParms(:,4);
-meanParms = aggregate(fParms,[1 3],4:7);
-stdParms  = aggregate(fParms,[1 3],4:7,@std);
-stdParms(:,4:end) = stdParms(:,4:end)./sqrt(nsubs/14);
+% fParms = [aggregate(diff_data,1:3, 1:3,@mean,1),-(fParms)];
+% fParms(:,7) = fParms(:,6) - fParms(:,4);
+% meanParms = aggregate(fParms,[1 3],4:7);
+% stdParms  = aggregate(fParms,[1 3],4:7,@std);
+% stdParms(:,4:end) = stdParms(:,4:end)./sqrt(nsubs/14);
 
 %% Plotting
 
